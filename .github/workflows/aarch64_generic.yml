@@ -96,6 +96,4 @@ jobs:
         with:
           name: ${{env.ARCHIVE_NAME}}-packages
           path: |
-            Packages
-            Packages.*
             *.ipk
