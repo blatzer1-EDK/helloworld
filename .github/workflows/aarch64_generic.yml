@@ -78,7 +78,7 @@ jobs:
           Download-URL: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
           Summary: $PACKAGES
           Platform: ${{ matrix.arch }}
-          Packages for ImmortalWrt $BRANCH running on ${{matrix.arch}}, built from PR $PRNUMBER
+          Packages for OpenWrt $BRANCH running on ${{matrix.arch}}, built from PR $PRNUMBER
           at commit $HEAD_ID, against $BRANCH at commit $BASE_ID, with merge SHA $MERGE_ID.
           Modified packages:
           _EOF_
