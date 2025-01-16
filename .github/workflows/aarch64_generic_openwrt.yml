@@ -83,7 +83,7 @@ jobs:
           cp openwrt/bin/targets/armsr/armv8/packages/*.ipk artifacts/ || true
 
       - name: Store packages
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openwrt-${{ matrix.arch }}-packages
           path: |
