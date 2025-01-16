@@ -1,0 +1,90 @@
+name: Build OpenWrt SSR+ for aarch64_generic
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64_generic
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Determine branch name
+        run: |
+          BRANCH="openwrt-23.05"
+          echo "Building for $BRANCH"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Determine changed packages
+        run: |
+          # only detect packages with changes
+          PKG_ROOTS=$(find . -name Makefile | \
+            grep -v ".*/src/Makefile" | \
+            sed -e 's@./\(.*\)/Makefile@\1/@')
+          CHANGES=$(git diff --diff-filter=d --name-only origin/$BRANCH)
+          for ROOT in $PKG_ROOTS; do
+            for CHANGE in $CHANGES; do
+              if [[ "$CHANGE" == "$ROOT"* ]]; then
+                PACKAGES+=$(echo "$ROOT" | sed -e 's@\(.*\)/@\1 @')
+                break
+              fi
+            done
+          done
+          # fallback to test packages if nothing explicitly changes
+          PACKAGES="${PACKAGES:-luci-app-ssr-plus}"
+          echo "Building $PACKAGES"
+          echo "PACKAGES=$PACKAGES" >> $GITHUB_ENV
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+          gettext git java-propose-classpath libelf-dev libncurses5-dev \
+          libncursesw5-dev libssl-dev python python3 python3-pip python3-ply \
+          python3-distutils python3-setuptools rsync unzip wget zlib1g-dev
+
+      - name: Clone OpenWrt SDK
+        run: |
+          git clone https://git.openwrt.org/openwrt/openwrt.git
+          cd openwrt
+          git checkout v23.05.5
+
+      - name: Update feeds
+        working-directory: openwrt
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: Configure SDK
+        working-directory: openwrt
+        run: |
+          echo 'CONFIG_TARGET_armsr=y' > .config
+          echo 'CONFIG_TARGET_armsr_armv8=y' >> .config
+          echo 'CONFIG_TARGET_armsr_armv8_DEVICE_generic=y' >> .config
+          make defconfig
+
+      - name: Build package
+        working-directory: openwrt
+        run: |
+          make package/${{ env.PACKAGES }}/compile V=s
+
+      - name: Collect built packages
+        run: |
+          mkdir -p artifacts
+          cp openwrt/bin/packages/aarch64_generic/packages/*.ipk artifacts/ || true
+          cp openwrt/bin/targets/armsr/armv8/packages/*.ipk artifacts/ || true
+
+      - name: Store packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: openwrt-${{ matrix.arch }}-packages
+          path: |
+            artifacts/*.ipk
